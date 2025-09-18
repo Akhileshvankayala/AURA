@@ -5,7 +5,10 @@ from app.api.gesture import gesture_api
 # from app.api.speech import speech_api  # <-- Commented out for now
 
 app = Flask(__name__)
-CORS(app)
+# Configure CORS to allow requests from frontend
+CORS(app, origins=['http://localhost:5173', 'http://127.0.0.1:5173'], 
+     methods=['GET', 'POST', 'OPTIONS'], 
+     allow_headers=['Content-Type', 'Authorization'])
 
 app.register_blueprint(attendance_api, url_prefix='/attendance')
 app.register_blueprint(gesture_api, url_prefix='/api/gesture')
