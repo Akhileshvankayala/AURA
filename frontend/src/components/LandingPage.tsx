@@ -24,12 +24,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchDemo }) => {
             
             {/* Main Heading */}
             <h1 className="text-5xl lg:text-7xl font-bold text-neutral-900 dark:text-neutral-100 mb-6 tracking-tight">
-              Attendify
+              AURA
             </h1>
             
             {/* Subtitle */}
             <p className="text-xl lg:text-2xl text-neutral-600 dark:text-neutral-400 mb-8 font-light max-w-3xl mx-auto leading-relaxed">
-              Face, Gesture, Voice — The Smarter Way to Attendance
+              AI-UNIFIED RECOGNITION FOR ATTENDANCE
             </p>
             
             {/* Description */}
