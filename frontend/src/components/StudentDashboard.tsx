@@ -69,6 +69,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
     if (ctx) {
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
       const imageData = canvas.toDataURL('image/jpeg');
+      console.log(imageData.length);
       const response = await fetch('http://localhost:5000/api/gesture/detect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
