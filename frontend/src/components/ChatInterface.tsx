@@ -9,6 +9,22 @@ interface ChatInterfaceProps {
   onClose: () => void;
 }
 
+// Helper to call backend chatbot API
+async function sendToChatbot(message: string): Promise<string> {
+  try {
+    const res = await fetch('http://127.0.0.1:8000/chatbot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+    if (!res.ok) throw new Error('Network error');
+    const data = await res.json();
+    return data.text || 'No response';
+  } catch (e) {
+    return 'Error contacting chatbot.';
+  }
+}
+
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -28,7 +44,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
     const newMessage: Message = {
@@ -45,27 +61,45 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
     setShowConfirmation(true);
     setTimeout(() => setShowConfirmation(false), 3000);
 
-    // Simulate faculty response
-    setTimeout(() => {
-      const response: Message = {
-        id: (Date.now() + 1).toString(),
-        text: 'Thank you for your message. I\'ll get back to you shortly.',
-        sender: 'faculty',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, response]);
-    }, 1500);
+    // Get faculty response from backend
+    const facultyText = await sendToChatbot(newMessage.text);
+    const response: Message = {
+      id: (Date.now() + 1).toString(),
+      text: facultyText,
+      sender: 'faculty',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, response]);
   };
 
   const handleVoiceToggle = () => {
-    setIsListening(!isListening);
-    
     if (!isListening) {
-      // Simulate voice recognition
-      setTimeout(() => {
-        setInputValue('Can I get an extension for my assignment?');
+      setIsListening(true);
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Speech Recognition is not supported in this browser.");
         setIsListening(false);
-      }, 2000);
+        return;
+      }
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInputValue(transcript);
+        setIsListening(false);
+      };
+      recognition.onerror = () => {
+        setIsListening(false);
+      };
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      recognition.start();
+    } else {
+      setIsListening(false);
     }
   };
 
