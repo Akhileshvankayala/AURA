@@ -5,7 +5,7 @@ attendance_api = Blueprint('attendance_api', __name__)
 
 @attendance_api.route('/attendance/mark', methods=['POST'])
 def mark_attendance_endpoint():
-    data = request.get_json()
+    data = request.get_json(force=True)
     roll_number = data.get('roll_number')
     manual = data.get('manual', False)
     if not roll_number:
@@ -26,7 +26,7 @@ def get_stats_endpoint(roll_number):
 
 @attendance_api.route('/attendance/manual', methods=['POST'])
 def manual_attendance_endpoint():
-    data = request.get_json()
+    data = request.get_json(force=True)
     roll_number = data.get('roll_number')
     code = data.get('code')
     if not roll_number or not code:

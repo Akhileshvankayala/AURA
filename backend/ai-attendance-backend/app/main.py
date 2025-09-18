@@ -1,11 +1,15 @@
-from fastapi import FastAPI
-from app.api import attendance
+from flask import Flask
+from app.api.attendance import attendance_api
+from app.api.gesture import gesture_api
 
-app = FastAPI()
+app = Flask(__name__)
+
+app.register_blueprint(attendance_api, url_prefix='/attendance')
+app.register_blueprint(gesture_api, url_prefix='/api/gesture')
 
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the AI-Powered Attendance Query System"}
 
-# Include the attendance API routes
-app.include_router(attendance.router)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
