@@ -150,11 +150,8 @@ def classify_gesture_opencv(img):
         else:
             return "open_chat"  # Simple shape, default to single gesture
 
-@gesture_api.route('/detect', methods=['POST', 'OPTIONS'])
+@gesture_api.route('/detect', methods=['POST'])
 def detect_gesture():
-    if request.method == 'OPTIONS':
-        return '', 200
-
     try:
         data = request.get_json()
         image_data = data.get('image')
