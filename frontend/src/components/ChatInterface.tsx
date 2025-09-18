@@ -12,7 +12,7 @@ interface ChatInterfaceProps {
 // Helper to call backend chatbot API
 async function sendToChatbot(message: string): Promise<string> {
   try {
-    const res = await fetch('http://127.0.0.1:8000/chatbot', {
+    const res = await fetch('http://localhost:5000/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message })
@@ -57,11 +57,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
     setMessages(prev => [...prev, newMessage]);
     setInputValue('');
 
-    // Show confirmation
     setShowConfirmation(true);
     setTimeout(() => setShowConfirmation(false), 3000);
 
-    // Get faculty response from backend
+    // Get Gemini response from backend
     const facultyText = await sendToChatbot(newMessage.text);
     const response: Message = {
       id: (Date.now() + 1).toString(),

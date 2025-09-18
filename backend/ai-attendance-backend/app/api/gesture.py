@@ -1,3 +1,11 @@
+from flask import Flask
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)  # Allow all origins by default
+# OR if you only want to allow React frontend:
+# CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
+
 from flask import Blueprint, request, jsonify
 import base64
 import cv2

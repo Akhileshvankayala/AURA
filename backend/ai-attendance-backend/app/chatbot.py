@@ -5,6 +5,24 @@
 from datetime import datetime
 from typing import List, Dict
 import speech_recognition as sr
+from flask import Blueprint, request, jsonify
+import google.generativeai as genai
+import os
+
+chatbot_api = Blueprint('chatbot_api', __name__)
+
+# Directly set your Gemini API key here
+api_key = "AIzaSyCZ4ZwueVrczgXkhbJMADjKDa7znO7D_3M"
+genai.configure(api_key=api_key)
+
+def get_gemini_response(user_input):
+    try:
+        model = genai.GenerativeModel("gemini-1.5-pro")
+        response = model.generate_content(user_input)
+        return response.text if response.text else "I couldn't generate a response."
+    except Exception as e:
+        print(f"Gemini error: {e}")
+        return f"Error: {str(e)}\nCheck if you have access to this model in AI Studio."
 
 class Chatbot:
     def __init__(self):
