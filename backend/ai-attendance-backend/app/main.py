@@ -1,8 +1,10 @@
 from flask import Flask
+from flask_cors import CORS
 from app.api.attendance import attendance_api
 from app.api.gesture import gesture_api
 
 app = Flask(__name__)
+CORS(app)
 
 app.register_blueprint(attendance_api, url_prefix='/attendance')
 app.register_blueprint(gesture_api, url_prefix='/api/gesture')

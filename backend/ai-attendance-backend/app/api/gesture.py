@@ -54,8 +54,11 @@ def classify_gesture_opencv(img):
     else:
         return "none"
 
-@gesture_api.route('/api/gesture/detect', methods=['POST'])
+@gesture_api.route('/detect', methods=['POST', 'OPTIONS'])
 def detect_gesture():
+    if request.method == 'OPTIONS':
+        return '', 200
+
     data = request.get_json()
     image_data = data.get('image')
     if not image_data:
