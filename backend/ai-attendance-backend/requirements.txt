@@ -1,0 +1,10 @@
+Flask
+Flask-RESTful
+Flask-CORS
+numpy
+pandas
+opencv-python
+tensorflow
+scikit-learn
+requests
+python-dotenv
