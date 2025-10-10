@@ -76,11 +76,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         body: JSON.stringify({ image: imageData }),
       });
       const result = await response.json();
-      if (result.key === 'c' && !isChatOpen) {
-        setIsChatOpen(true); // Open chat interface
+      if (result.key === 'c') {
+        onOpenChat(); // This sets isChatOpen to true
       }
       if (result.key === 't') {
-        onSwitchToTeacher(); // This switches to teacher view
+        onSwitchToTeacher(); // This sets currentView to 'teacher'
       }
       // Handle other cases as needed
     }

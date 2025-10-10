@@ -6,6 +6,11 @@ import cv2
 import numpy as np
 import speech_recognition as sr
 from openai import OpenAI
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import logging
+
 
 app = Flask(__name__)
 CORS(app, origins=['http://localhost:5173', 'http://127.0.0.1:5173'],
@@ -18,6 +23,33 @@ client = OpenAI(
     base_url="https://router.huggingface.co/v1",
     api_key=HF_TOKEN,
 )
+
+# --- Email Setup ---
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SENDER_EMAIL = ""
+SENDER_PASSWORD = ""
+RECIPIENT_EMAIL = ""
+
+logging.basicConfig(level=logging.WARNING)
+
+def send_query_email(subject, body):
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = RECIPIENT_EMAIL
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.sendmail(SENDER_EMAIL, RECIPIENT_EMAIL, msg.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        logging.warning(f"Email sending failed: {e}")
+        return False
 
 def get_hf_response(user_input):
     try:
@@ -106,7 +138,7 @@ def classify_gesture_opencv(img):
     elif finger_count == 2 or finger_count == 3:
         return "mark_attendance"
     elif finger_count >= 4:
-        return "teacher_view"
+        return "open_chat"
     else:
         return "none"
 
@@ -128,6 +160,7 @@ def detect_gesture():
         if img is None:
             return jsonify({'gesture': 'none', 'emoji': '', 'key': None})
         gesture = classify_gesture_opencv(img)
+        print(gesture)
         key = None
         if gesture == "open_chat":
             key = "c"
@@ -138,7 +171,7 @@ def detect_gesture():
         print(f"Gesture detection error: {e}")
         return jsonify({'error': 'Internal server error', 'gesture': 'none', 'emoji': '', 'key': None}), 500
 
-# --- Chatbot Endpoint (uses Hugging Face) ---
+# --- Chatbot Endpoint (with query email logic) ---
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
@@ -146,8 +179,15 @@ def chat():
     if not user_input:
         return jsonify({"error": "No message provided"}), 400
 
-    response_text = get_hf_response(user_input)
     now = datetime.now()
+    if 'query' in user_input.lower():
+        subject = "Query from Chatbot"
+        body = f"User query: {user_input}\nTimestamp: {now.isoformat()}"
+        email_sent = send_query_email(subject, body)
+        response_text = "Your query has been sent to the prescribed email. You will get a response soon."
+    else:
+        response_text = get_hf_response(user_input)
+
     response = {
         "id": str(int(now.timestamp() * 1000)),
         "text": response_text,
@@ -173,6 +213,44 @@ def speech_to_text():
         return jsonify({'error': 'Could not understand the audio'}), 400
     except sr.RequestError as e:
         return jsonify({'error': f'Speech Recognition Error: {e}'}), 500
+'''
+# --- Face Recognition Endpoint ---
+@app.route('/api/face/recognize', methods=['POST'])
+def recognize_face():
+    data = request.get_json()
+    image_data = data.get('image')
+    if not image_data:
+        return jsonify({'error': 'No image provided'}), 400
+    header, encoded = image_data.split(",", 1)
+    img_bytes = base64.b64decode(encoded)
+    nparr = np.frombuffer(img_bytes, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    face_locations = face_recognition.face_locations(rgb_img)
+    face_encodings = face_recognition.face_encodings(rgb_img, face_locations)
+    if len(face_encodings) == 0:
+        return jsonify({'recognized': False, 'message': 'No face detected'})
+    # For demo, just return that a face was found
+    # In production, compare with known encodings and save if new
+    return jsonify({'recognized': True, 'message': 'Face recognized', 'encoding': face_encodings[0].tolist()})
+'''
+# --- Gesture Recognition and Attendance ---
+@app.route('/api/gesture/attendance', methods=['POST'])
+def gesture_attendance():
+    data = request.get_json()
+    gesture = data.get('gesture')
+    face_encoding = np.array(data.get('face_encoding'))
+    # Here, you would compare face_encoding with your database
+    # For demo, assume face is recognized
+    if gesture == "mark_attendance":
+        # Mark attendance for this face
+        return jsonify({'success': True, 'message': 'Attendance marked for recognized face'})
+    elif gesture == "open_chat":
+        return jsonify({'success': True, 'message': 'Open chat'})
+    elif gesture == "teacher_view":
+        return jsonify({'success': True, 'message': 'Switch to teacher view'})
+    else:
+        return jsonify({'success': False, 'message': 'Unknown gesture'})
 
 @app.route("/")
 def read_root():

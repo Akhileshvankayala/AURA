@@ -14,6 +14,7 @@ const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>('landing');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [isTeacherDashboardOpen, setIsTeacherDashboardOpen] = useState(false);
 
   // Keyboard shortcut for chat (C key)
   useEffect(() => {
@@ -25,10 +26,12 @@ const AppContent: React.FC = () => {
         
         if (key === 'c' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           setIsChatOpen(true);
-        } else if (key === 't' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        } 
+        else if (key === 't' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           // Switch to teacher view
-          setCurrentView('teacher');
-        } else if (key === 'v' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          setIsTeacherDashboardOpen(true);
+        } 
+        else if (key === 'v' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           // Show view stats notification (only works in student view)
           if (currentView === 'student') {
             // Trigger the same action as the gesture/button
@@ -68,7 +71,7 @@ const AppContent: React.FC = () => {
         break;
       case 'fist':
         // Switch to teacher dashboard
-        setCurrentView('teacher');
+        setIsTeacherDashboardOpen(true);
         break;
     }
   };
@@ -154,11 +157,15 @@ const AppContent: React.FC = () => {
         )}
 
         {currentView === 'student' && (
-          <StudentDashboard onGestureActivate={handleGestureActivate} />
+          <StudentDashboard
+            onGestureActivate={handleGestureActivate}
+            onOpenChat={() => setIsChatOpen(true)}
+            onSwitchToTeacher={() => setIsTeacherDashboardOpen(true)}
+          />
         )}
 
-        {currentView === 'teacher' && (
-          <TeacherDashboard onBack={() => setCurrentView('student')} />
+        {isTeacherDashboardOpen && (
+          <TeacherDashboard onBack={() => setIsTeacherDashboardOpen(false)} />
         )}
       </div>
 

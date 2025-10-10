@@ -38,6 +38,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
   const [isListening, setIsListening] = useState(false);
   const [deliveryMethod, setDeliveryMethod] = useState<'sms' | 'whatsapp' | 'email'>('sms');
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationText, setConfirmationText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -57,10 +58,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
     setMessages(prev => [...prev, newMessage]);
     setInputValue('');
 
-    setShowConfirmation(true);
-    setTimeout(() => setShowConfirmation(false), 3000);
-
-    // Get Gemini response from backend
+    // Get response from backend
     const facultyText = await sendToChatbot(newMessage.text);
     const response: Message = {
       id: (Date.now() + 1).toString(),
@@ -69,6 +67,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
       timestamp: new Date()
     };
     setMessages(prev => [...prev, response]);
+
+    // Show confirmation only if the backend response indicates a query was sent to email
+    if (
+      facultyText.includes('Your query has been sent to the prescribed email') ||
+      facultyText.toLowerCase().includes('query sent')
+    ) {
+      setConfirmationText('Message sent to Faculty via EMAIL');
+      setShowConfirmation(true);
+      setTimeout(() => setShowConfirmation(false), 3000);
+    }
   };
 
   const handleVoiceToggle = () => {
@@ -133,24 +141,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
           <div className="flex items-center space-x-3">
             <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Send via:</span>
             <div className="flex items-center space-x-2">
-              {[
-                { value: 'sms', icon: Smartphone, label: 'SMS' },
-                { value: 'whatsapp', icon: MessageSquare, label: 'WhatsApp' },
-                { value: 'email', icon: Mail, label: 'Email' }
-              ].map((method) => (
-                <button
-                  key={method.value}
-                  onClick={() => setDeliveryMethod(method.value as any)}
-                  className={`flex items-center space-x-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                    deliveryMethod === method.value
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700'
-                  }`}
-                >
-                  <method.icon className="w-3 h-3" />
-                  <span>{method.label}</span>
-                </button>
-              ))}
+              <button
+                key="email"
+                onClick={() => setDeliveryMethod('email')}
+                className={`flex items-center space-x-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                  deliveryMethod === 'email'
+                    ? 'bg-primary-500 text-white'
+                    : 'bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700'
+                }`}
+              >
+                <Mail className="w-3 h-3" />
+                <span>Email</span>
+              </button>
             </div>
           </div>
         </div>
@@ -161,7 +163,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                Message sent to Faculty via {deliveryMethod.toUpperCase()}
+                {confirmationText}
               </span>
             </div>
           </div>
