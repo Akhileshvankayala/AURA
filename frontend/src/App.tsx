@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun, Settings, ArrowLeft, Zap } from 'lucide-react';
-import { ThemeProvider, useTheme } from './components/ThemeProvider';
+import { Settings, ArrowLeft, Zap } from 'lucide-react';
+import { ThemeProvider } from './components/ThemeProvider';
 import { LandingPage } from './components/LandingPage';
 import { StudentDashboard } from './components/StudentDashboard';
 import { TeacherDashboard } from './components/TeacherDashboard';
 import { ChatInterface } from './components/ChatInterface';
 import { EdgeCaseModals } from './components/EdgeCaseModals';
+import { RegistrationPage } from './components/RegistrationPage';
 import { Button } from './components/ui/Button';
-import type { ViewMode } from './types';
+
+type ViewMode = 'landing' | 'student' | 'teacher' | 'register';
 
 const AppContent: React.FC = () => {
-  const { isDark, toggleTheme } = useTheme();
   const [currentView, setCurrentView] = useState<ViewMode>('landing');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -99,9 +100,9 @@ const AppContent: React.FC = () => {
   }, [currentView]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-primary-50/30 dark:from-neutral-900 dark:to-neutral-800">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 text-white">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border-b border-neutral-200/60 dark:border-neutral-800/60">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-800/60 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -120,21 +121,13 @@ const AppContent: React.FC = () => {
                 <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-accent-500 rounded-xl flex items-center justify-center shadow-soft">
                   <Zap className="w-5 h-5 text-white" />
                 </div>
-                <span className="font-bold text-2xl text-neutral-900 dark:text-neutral-100">
+                <span className="font-bold text-2xl text-neutral-100 drop-shadow-[0_0_8px_rgba(14,165,233,0.5)]">
                   AURA 
                 </span>
               </div>
             </div>
 
             <div className="flex items-center space-x-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleTheme}
-                className="p-2"
-              >
-                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </Button>
               
               {currentView !== 'landing' && (
                 <Button
@@ -153,7 +146,17 @@ const AppContent: React.FC = () => {
       {/* Main Content */}
       <div className="pt-20">
         {currentView === 'landing' && (
-          <LandingPage onLaunchDemo={() => setCurrentView('student')} />
+          <LandingPage 
+            onLaunchDemo={() => setCurrentView('student')} 
+            onRegister={() => setCurrentView('register')} 
+          />
+        )}
+
+        {currentView === 'register' && (
+          <RegistrationPage 
+            onBack={() => setCurrentView('landing')}
+            onSuccess={() => setCurrentView('landing')}
+          />
         )}
 
         {currentView === 'student' && (

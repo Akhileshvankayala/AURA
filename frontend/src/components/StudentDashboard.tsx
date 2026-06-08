@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Wifi, CheckCircle, AlertTriangle } from 'lucide-react';
+import * as faceapi from 'face-api.js';
+import axios from 'axios';
 import { Card } from './ui/Card';
 import { GestureControls } from './GestureControls';
 import { AttendanceOverlay } from './AttendanceOverlay';
@@ -17,12 +19,13 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   onOpenChat, 
   onSwitchToTeacher 
 }) => {
-  const [attendanceStats] = useState<AttendanceStats>({
-    currentPercentage: 78,
-    classesAttended: 23,
-    totalClasses: 30,
-    classesNeeded: 3
+  const [attendanceStats, setAttendanceStats] = useState<AttendanceStats>({
+    currentPercentage: 0,
+    classesAttended: 0,
+    totalClasses: 0,
+    classesNeeded: 0
   });
+  const [currentStudentName, setCurrentStudentName] = useState<string>('Guest');
 
   const [showNotification, setShowNotification] = useState(false);
   const [notificationType, setNotificationType] = useState<'success' | 'warning'>('success');
@@ -59,6 +62,93 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  // Face Recognition Logic
+  useEffect(() => {
+    let isChecking = true;
+
+    const loadModelsAndRecognize = async () => {
+      try {
+        await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+        await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+        await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+        
+        // Fetch known students
+        const res = await axios.get('http://localhost:5001/api/attendance/students');
+        const students = res.data;
+        
+        if (students.length === 0) return;
+
+        const labeledDescriptors = students.map((s: any) => {
+          return new faceapi.LabeledFaceDescriptors(
+            s.roll_number,
+            [new Float32Array(s.faceDescriptor)]
+          );
+        });
+
+        const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+
+        const checkFaceInterval = setInterval(async () => {
+          if (!videoRef.current || !isChecking) return;
+          
+          try {
+            const detection = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+              .withFaceLandmarks()
+              .withFaceDescriptor();
+
+            if (detection) {
+              const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+              if (bestMatch.label !== 'unknown') {
+                // We found a student, mark attendance!
+                isChecking = false; // stop checking to avoid spam
+                clearInterval(checkFaceInterval);
+                
+                triggerNotification('success', `Face recognized! Marking attendance for ${bestMatch.label}...`);
+                
+                await axios.post('http://localhost:5001/api/attendance/mark', {
+                  roll_number: bestMatch.label,
+                  markedVia: 'Face Recognition'
+                });
+
+                // Fetch real stats
+                try {
+                  const statRes = await axios.get(`http://localhost:5001/api/attendance/stats/${bestMatch.label}`);
+                  const data = statRes.data;
+                  setAttendanceStats({
+                    currentPercentage: data.attendance,
+                    classesAttended: data.totalDays,
+                    totalClasses: Math.max(30, data.totalDays),
+                    classesNeeded: Math.max(0, Math.ceil(0.75 * Math.max(30, data.totalDays)) - data.totalDays)
+                  });
+                  // Find the student name from our fetched students list
+                  const matchingStudent = students.find((s: any) => s.roll_number === bestMatch.label);
+                  if (matchingStudent) {
+                    setCurrentStudentName(matchingStudent.name);
+                  }
+                } catch (e) {
+                  console.error("Failed to fetch stats", e);
+                }
+
+                setTimeout(() => {
+                  triggerNotification('success', `Attendance successfully logged!`);
+                }, 2000);
+              }
+            }
+          } catch(e) {
+            console.error('Face recognition interval error:', e);
+          }
+        }, 3000); // Check every 3 seconds
+
+        return () => clearInterval(checkFaceInterval);
+      } catch (err) {
+        console.error("Failed to load models or fetch students", err);
+      }
+    };
+
+    loadModelsAndRecognize();
+
+    return () => { isChecking = false; };
+  }, []);
+
   // Capture a frame from the video and send to backend
   const sendGestureFrame = async () => {
     if (!videoRef.current) return;
@@ -69,33 +159,47 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
     if (ctx) {
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
       const imageData = canvas.toDataURL('image/jpeg');
-      console.log(imageData.length);
-      const response = await fetch('http://localhost:5000/api/gesture/detect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: imageData }),
-      });
-      const result = await response.json();
-      if (result.key === 'c') {
-        onOpenChat(); // This sets isChatOpen to true
+      try {
+        const response = await fetch('http://localhost:5000/api/gesture/detect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: imageData }),
+        });
+        const result = await response.json();
+        console.log('Gesture detected:', result);
+        
+        // Check if gesture was detected with good confidence
+        if (result.gesture && result.confidence && result.confidence > 0.6) {
+          const gestureClass = result.gesture.toLowerCase();
+          
+          // Map gesture classes to actions based on labels.txt
+          // Real labels are like "0 View Stats", "1 Mark Attendance", "2 Open Chat", "3 Teacher View"
+          // Mock labels are "wave", "peace", "rock", "fist"
+          if (gestureClass.includes('rock') || gestureClass === 'class_2' || gestureClass.includes('open chat') || gestureClass.startsWith('2')) {
+            // Rock gesture = Open Chat
+            setIsChatOpen(true);
+            triggerNotification('success', 'Chat opened with rock gesture');
+          } else if (gestureClass.includes('fist') || gestureClass === 'class_3' || gestureClass.includes('teacher view') || gestureClass.startsWith('3')) {
+            // Fist gesture = Teacher View
+            onSwitchToTeacher();
+            triggerNotification('success', 'Switching to teacher view');
+          } else if (gestureClass.includes('peace') || gestureClass === 'class_1' || gestureClass.includes('view stats') || gestureClass.startsWith('0')) {
+            // Peace gesture = View Stats
+            triggerNotification('success', 'Viewing statistics');
+            handleViewStats();
+          } else if (gestureClass.includes('wave') || gestureClass === 'class_0' || gestureClass.includes('mark attendance') || gestureClass.startsWith('1')) {
+            // Wave gesture = Mark Attendance
+            handleMarkAttendance();
+            triggerNotification('success', 'Attendance marked with wave gesture');
+          }
+        }
+      } catch (error) {
+        console.error('Error detecting gesture:', error);
       }
-      if (result.key === 't') {
-        onSwitchToTeacher(); // This sets currentView to 'teacher'
-      }
-      // Handle other cases as needed
     }
   };
 
-  useEffect(() => {
-    // Simulate attendance marking on component load
-    setTimeout(() => {
-      setNotificationMessage('Attendance marked successfully');
-      setNotificationType('success');
-      setShowNotification(true);
-      
-      setTimeout(() => setShowNotification(false), 4000);
-    }, 1000);
-  }, []);
+
 
   const triggerNotification = (type: 'success' | 'warning', message: string) => {
     setNotificationType(type);
@@ -181,13 +285,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
             {/* Gesture Controls */}
             <div className="mt-8">
-              <GestureControls 
-                onGestureClick={onGestureActivate}
-                onOpenChat={onOpenChat}
-                onSwitchToTeacher={onSwitchToTeacher}
-                onViewStats={handleViewStats}
-                onMarkAttendance={handleMarkAttendance}
-              />
+              <GestureControls />
             </div>
           </div>
 
@@ -195,7 +293,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           <div className="space-y-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
             {/* Quick Stats */}
             <Card className="p-6">
-              <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-6">Quick Stats</h3>
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2">Quick Stats</h3>
+              <p className="text-sm text-primary-500 font-medium mb-6">Student: {currentStudentName}</p>
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <span className="text-neutral-600 dark:text-neutral-400">Current Attendance</span>

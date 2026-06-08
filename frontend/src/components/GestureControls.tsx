@@ -1,53 +1,15 @@
 import React, { useState } from 'react';
 import { Card } from './ui/Card';
-import { markAttendance, getStats } from '../utils/api';
 
-interface GestureControlsProps {
-  onGestureClick: (gesture: string) => void;
-  onOpenChat: () => void;
-  onSwitchToTeacher: () => void;
-  onViewStats: (stats?: any) => void;
-  onMarkAttendance: (result?: any) => void;
-}
-
-export const GestureControls: React.FC<GestureControlsProps> = ({
-  onGestureClick,
-  onOpenChat,
-  onSwitchToTeacher,
-  onViewStats,
-  onMarkAttendance,
-}) => {
+export const GestureControls: React.FC<GestureControlsProps> = () => {
   const [hoveredGesture, setHoveredGesture] = useState<string | null>(null);
 
   const gestures = [
-    { emoji: '✌️', name: 'peace', label: 'View Stats', description: 'Show attendance statistics' },
-    { emoji: '👋', name: 'wave', label: 'Mark Attendance', description: 'Manual attendance marking' },
-    { emoji: '🤟', name: 'rock', label: 'Open Chat', description: 'Chat with faculty' },
-    { emoji: '✊', name: 'fist', label: 'Teacher View', description: 'Switch to teacher dashboard' }
+    { emoji: '👋', name: 'wave', label: 'Mark Attendance', description: 'Show WAVE gesture to mark attendance', action: 'mark_attendance' },
+    { emoji: '✌️', name: 'peace', label: 'View Stats', description: 'Show PEACE gesture to view stats', action: 'view_stats' },
+    { emoji: '🤟', name: 'rock', label: 'Open Chat', description: 'Show ROCK gesture to open chat', action: 'open_chat' },
+    { emoji: '✊', name: 'fist', label: 'Teacher View', description: 'Show FIST gesture to teacher view', action: 'teacher_view' }
   ];
-
-  const rollNumber = "24eg105g54"; // Replace with actual student roll number or get from props/context
-
-  const handleGestureClick = async (gesture: any) => {
-    switch (gesture.name) {
-      case 'peace':
-        const stats = await getStats(rollNumber);
-        onViewStats(stats);
-        break;
-      case 'wave':
-        const result = await markAttendance(rollNumber);
-        onMarkAttendance(result);
-        break;
-      case 'rock':
-        onOpenChat();
-        break;
-      case 'fist':
-        onSwitchToTeacher();
-        break;
-      default:
-        onGestureClick(gesture.name);
-    }
-  };
 
   return (
     <div className="animate-slide-up">
@@ -60,7 +22,6 @@ export const GestureControls: React.FC<GestureControlsProps> = ({
             style={{ animationDelay: `${index * 0.1}s` }}
             onMouseEnter={() => setHoveredGesture(gesture.name)}
             onMouseLeave={() => setHoveredGesture(null)}
-            onClick={() => handleGestureClick(gesture)}
           >
             <Card
               hover
